@@ -1256,22 +1256,25 @@ async function renderOnlinePrompts(ver) {
 
     cnt.innerHTML = '<span class="online-prompt-empty" style="color:#555;">Loading trigger words…</span>';
 
-    const trainedWords = await collectAllTrainedWords(ver);
+    const trainedWords = [...new Set(await collectAllTrainedWords(ver))];
     const description  = ver.description ? stripHtml(ver.description) : '';
 
     let html = '';
 
     if (trainedWords.length > 0) {
-        const areaId = 'onlineTrainedWords';
+    trainedWords.forEach((prompt, i) => {
+        const areaId = 'onlineTrainedWords_' + i;
+
         html += '<div class="online-prompt-block">' +
             '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">' +
-            '<span class="online-prompt-label">Trigger Words (Civitai)</span>' +
+            '<span class="online-prompt-label">Prompt ' + (i + 1) + '</span>' +
             '<button class="copy-btn" onclick="copyFromArea(\'' + areaId + '\',this)" title="Copy">⧉</button>' +
             '</div>' +
             '<textarea class="online-prompt-area promptArea" id="' + areaId + '" readonly>' +
-            escHtml(trainedWords.join(', ')) +
+            escHtml(prompt.trim()) +
             '</textarea></div>';
-    }
+    });
+}
 
     if (description.length > 0) {
         const excerpt = description.slice(0, 800);
