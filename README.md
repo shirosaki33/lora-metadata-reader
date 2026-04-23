@@ -15,6 +15,8 @@ Huggingface integration will be added later. If the search in Civitai fails, the
 
 PNG Metadata Reader is a standalone tool still under development. Don't worry about it, but it will be available in another repository on my profile as soon as it's ready.
 
+use online > https://shirosaki33.github.io/Lora-Metadata-Reader/Lora%20Metadata%20Reader%20v1.html
+
 <img width="1172" height="1229" alt="image" src="https://github.com/user-attachments/assets/0d05df2a-3c92-40b9-b366-c64f44e79f24" />
 <img width="842" height="1232" alt="image" src="https://github.com/user-attachments/assets/09fa660e-fa7e-422f-84ce-35129ee908f5" />
 <img width="1209" height="391" alt="image" src="https://github.com/user-attachments/assets/7c3dabd2-ee31-493f-bd30-4e54ca968d12" />
