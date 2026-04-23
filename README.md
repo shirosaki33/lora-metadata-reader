@@ -11,8 +11,6 @@ The Danbooru tag system I created serves to automatically detect used tags and c
 
 The online system was redesigned for slightly better usability, especially the prompts suggested by the creators.
 
-Huggingface integration will be added later. If the search in Civitai fails, the system will try Huggingface as an alternative (soon).
-
 PNG Metadata Reader is a standalone tool still under development. Don't worry about it, but it will be available in another repository on my profile as soon as it's ready.
 
 use online > https://shirosaki33.github.io/Lora-Metadata-Reader/Lora%20Metadata%20Reader%20v1.html
