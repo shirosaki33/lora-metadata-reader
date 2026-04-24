@@ -391,6 +391,25 @@
         .online-prompt-area { background: #0d0d0d; color: #00cc88; width: 100%; border: 1px solid #1e1e1e; border-radius: 6px; padding: 8px 10px; font-family: inherit; font-size: 13px; resize: none; overflow: hidden; box-sizing: border-box; display: block; height: auto; min-height: 36px; }
         .online-prompt-empty { color: #444; font-size: 12px; font-style: italic; }
 
+        /* Civitai model description */
+        .civitai-model-desc {
+            font-size: 12px;
+            color: #ddd;
+            line-height: 1.6;
+            word-break: break-word;
+            padding-right: 4px;
+        }
+        .civitai-model-desc a { color: #00ff99; text-decoration: none; }
+        .civitai-model-desc a:hover { color: #fff; text-decoration: underline; }
+        .civitai-model-desc p { margin: 0 0 6px; }
+        .civitai-model-desc h1,
+        .civitai-model-desc h2,
+        .civitai-model-desc h3 { font-size: 13px; font-weight: 600; margin: 8px 0 4px; color: #fff; }
+        .civitai-model-desc ul,
+        .civitai-model-desc ol { padding-left: 18px; margin: 4px 0; }
+        .civitai-model-desc li { margin-bottom: 2px; }
+        .civitai-model-desc .img-placeholder { display: inline-block; background: #1a2a1e; border: 1px solid #2a4a30; color: #00cc88; font-size: 11px; padding: 1px 6px; border-radius: 4px; font-family: monospace; }
+
         /* footer */
         .footerbar {
             margin-top: 20px;
@@ -1058,6 +1077,23 @@ async function applyVersion(ver) {
     setStatus('found', '✓ ' + modelName + ' — ' + ver.name);
     showBanner('found', '✅  Found on CivitAI — ' + modelName);
 
+    // ── Check if this is the latest version ─────────────────────────────────
+    (async () => {
+        try {
+            if (ver.modelId) {
+                const mr = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
+                if (mr.ok) {
+                    const md = await mr.json();
+                    const versions = md.modelVersions || [];
+                    // Latest version is the first in the array (Civitai orders newest first)
+                    if (versions.length > 0 && versions[0].id !== ver.id) {
+                        showOutdatedBanner();
+                    }
+                }
+            }
+        } catch { /* silently ignore version check errors */ }
+    })();
+
     const nameEl = document.getElementById('loraNameDisplay');
     nameEl.innerHTML = '<a href="' + civUrl + '" target="_blank">' + escHtml(modelName) + '</a>';
 
@@ -1069,10 +1105,8 @@ async function applyVersion(ver) {
 
     let creatorName = ver.model?.creator?.username || '';
     let creatorImg  = ver.model?.creator?.image    || '';
-
-    // Fetch full model data: used for both creator info AND version freshness check.
-    // Single fetch avoids racing two parallel requests against the same endpoint.
-    if (ver.modelId) {
+    // Always fetch the full model to get model description; also grab creator if not yet known
+    if (ver.modelId && (!creatorName || !ver._modelDescription)) {
         try {
             const mr = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
             if (mr.ok) {
@@ -1081,13 +1115,16 @@ async function applyVersion(ver) {
                     creatorName = md.creator?.username || '';
                     creatorImg  = md.creator?.image    || '';
                 }
-                // ── Outdated version check: Civitai returns versions newest-first ──
-                const versions = md.modelVersions || [];
-                if (versions.length > 0 && versions[0].id !== ver.id) {
-                    showOutdatedBanner();
+                // Capture model description for populateOnline
+                if (!ver._modelDescription && md.description) {
+                    ver._modelDescription = md.description;
                 }
             }
         } catch { }
+    }
+    // Also capture from ver.model if already present (no fetch needed)
+    if (!ver._modelDescription && ver.model?.description) {
+        ver._modelDescription = ver.model.description;
     }
     // Item 9: fall back to metadata creator fields if still not found
     if (!creatorName) {
@@ -1185,15 +1222,55 @@ function populateOnline(ver, civUrl, modelName, creatorName, creatorUrl) {
         ['Published',  ver.publishedAt ? new Date(ver.publishedAt).toLocaleDateString() : '—'],
     ].map(([l,v]) => '<div class="olc-row"><span class="olc-label">' + l + '</span><span class="olc-value">' + v + '</span></div>').join('');
 
-    const desc = ver.description
-    ? '<div style="margin-top:10px;">' +
-        '<div style="color:#aaa;font-size:11px;margin-bottom:4px;">Description</div>' +
-        '<div style="color:#fff;font-size:12px;max-height:80px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;">' +
-            escHtml(stripHtml(ver.description).slice(0, 400)) +
-        '</div>' +
-      '</div>'
-    : '';
-    card.innerHTML = rows + desc;
+    // Version note (from version description) — renamed from "Description"
+    let verNoteHtml = '';
+    const rawVerNote = ver.description || '';
+
+    if (rawVerNote && rawVerNote.trim()) {
+        const sanitizedVerNote = sanitizeCivitaiDesc(rawVerNote);   // ← Mesma função usada no Model Description
+        
+        verNoteHtml =
+            '<div style="margin-top:10px;">' +
+                '<div style="color:#aaa;font-size:11px;margin-bottom:4px;">Version Note</div>' +
+                '<div class="civitai-model-desc" id="civitaiVersionNote">' +
+                    sanitizedVerNote +
+                '</div>' +
+            '</div>';
+    }
+
+    // Model description (from ver._modelDescription fetched separately) — full HTML preserved, images as [img], scroll if long
+    let modelDescHtml = '';
+    const rawModelDesc = ver._modelDescription || '';
+    if (rawModelDesc && rawModelDesc.trim()) {
+        const modelDescRendered = sanitizeCivitaiDesc(rawModelDesc);
+        modelDescHtml =
+            '<div style="margin-top:10px;">' +
+            '<div style="color:#aaa;font-size:11px;margin-bottom:4px;">Model Description</div>' +
+            '<div class="civitai-model-desc" id="civitaiModelDesc">' +
+                modelDescRendered +
+            '</div>' +
+            '</div>';
+    }
+
+    card.innerHTML = rows + verNoteHtml + modelDescHtml;
+
+    // After inserting, measure and apply scroll if >10 lines
+    requestAnimationFrame(() => {
+        const descElements = ['civitaiVersionNote', 'civitaiModelDesc'];
+        
+        descElements.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                const lineH = parseFloat(window.getComputedStyle(el).lineHeight) || 18;
+                const tenLines = lineH * 10;
+                
+                if (el.scrollHeight > tenLines + 4) {
+                    el.style.maxHeight = tenLines + 'px';
+                    el.style.overflowY = 'auto';
+                }
+            }
+        });
+    });
 
     // Open the online panel if not already
     const panel = document.getElementById('onlinePanel');
@@ -1225,24 +1302,26 @@ async function collectAllTrainedWords(ver) {
     // 1. This version's own trainedWords (fastest, always present)
     addWords(ver.trainedWords);
 
-    // 2. Any modelVersions embedded in this response
-    if (Array.isArray(ver.modelVersions)) {
-        ver.modelVersions.forEach(mv => addWords(mv.trainedWords));
-    }
-    if (ver.model && Array.isArray(ver.model.modelVersions)) {
-        ver.model.modelVersions.forEach(mv => addWords(mv.trainedWords));
-    }
+    // 2. Only aggregate other versions if this version has NO trainedWords property at all
+    //    (not just an empty array — empty means "no trigger words" and should be respected)
+    if (!Array.isArray(ver.trainedWords)) {
+        if (Array.isArray(ver.modelVersions)) {
+            ver.modelVersions.forEach(mv => addWords(mv.trainedWords));
+        }
+        if (ver.model && Array.isArray(ver.model.modelVersions)) {
+            ver.model.modelVersions.forEach(mv => addWords(mv.trainedWords));
+        }
 
-    // 3. Xypher approach: fetch the full model to get ALL version trainedWords
-    //    This catches trigger words defined on other versions of the same model.
-    if (ver.modelId && all.length === 0) {
-        try {
-            const r = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
-            if (r.ok) {
-                const fullModel = await r.json();
-                (fullModel.modelVersions || []).forEach(mv => addWords(mv.trainedWords));
-            }
-        } catch { }
+        // Xypher approach: fetch the full model to get ALL version trainedWords
+        if (ver.modelId && all.length === 0) {
+            try {
+                const r = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
+                if (r.ok) {
+                    const fullModel = await r.json();
+                    (fullModel.modelVersions || []).forEach(mv => addWords(mv.trainedWords));
+                }
+            } catch { }
+        }
     }
 
     return all;
@@ -1280,7 +1359,8 @@ async function renderOnlinePrompts(ver) {
     }
 
     if (!html) {
-        cnt.innerHTML = '<span class="online-prompt-empty">No trigger words or description found on Civitai.</span>';
+        // No prompt content — hide the box entirely
+        box.style.display = 'none';
         return;
     }
 
@@ -2033,6 +2113,68 @@ function escHtml(s) {
 }
 function stripHtml(h) {
     const d = document.createElement('div'); d.innerHTML = h; return d.textContent || d.innerText || '';
+}
+
+// Convert raw Civitai HTML description to safe renderable HTML:
+// - keeps links (<a href>), paragraphs, headings, lists
+// - replaces all <img> tags with a [img] badge
+// - strips all other unsafe tags/attributes
+function sanitizeCivitaiDesc(raw) {
+    if (!raw) return '';
+    const allowed = {
+        A: ['href', 'target'],
+        P: [], BR: [], STRONG: [], B: [], EM: [], I: [], U: [], S: [],
+        H1: [], H2: [], H3: [], H4: [],
+        UL: [], OL: [], LI: [],
+        SPAN: [], DIV: [], BLOCKQUOTE: [],
+    };
+    const tmp = document.createElement('div');
+    tmp.innerHTML = raw;
+    // Replace img with [img] badge
+    tmp.querySelectorAll('img').forEach(img => {
+        const badge = document.createElement('span');
+        badge.className = 'img-placeholder';
+        badge.textContent = '[img]';
+        img.replaceWith(badge);
+    });
+    // Walk and strip disallowed tags/attributes
+    function sanitizeNode(node) {
+        if (node.nodeType === Node.TEXT_NODE) return node.cloneNode();
+        if (node.nodeType !== Node.ELEMENT_NODE) return null;
+        const tag = node.tagName.toUpperCase();
+        if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'IFRAME' || tag === 'OBJECT') return null;
+        const frag = document.createDocumentFragment();
+        node.childNodes.forEach(child => {
+            const cleaned = sanitizeNode(child);
+            if (cleaned) frag.appendChild(cleaned);
+        });
+        if (!(tag in allowed)) {
+            // Unwrap — just return children
+            return frag;
+        }
+        const el = document.createElement(tag === 'A' ? 'a' : tag.toLowerCase());
+        (allowed[tag] || []).forEach(attr => {
+            const val = node.getAttribute(attr);
+            if (val) {
+                if (attr === 'href') {
+                    // Only allow safe URLs
+                    if (/^(https?:|\/|#)/i.test(val)) el.setAttribute('href', val);
+                    el.setAttribute('target', '_blank');
+                    el.setAttribute('rel', 'noopener noreferrer');
+                } else {
+                    el.setAttribute(attr, val);
+                }
+            }
+        });
+        el.appendChild(frag);
+        return el;
+    }
+    const out = document.createElement('div');
+    tmp.childNodes.forEach(child => {
+        const cleaned = sanitizeNode(child);
+        if (cleaned) out.appendChild(cleaned);
+    });
+    return out.innerHTML;
 }
 
 // ── INTERNET CHECK ────────────────────────────────────────────────────────────
