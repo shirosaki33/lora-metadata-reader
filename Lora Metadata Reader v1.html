@@ -1612,11 +1612,24 @@ function populateUI(meta) {
             if (doraKey && (doraKey === '1' || doraKey.toLowerCase() === 'true')) val = 'DoRA';
         }
 
-        if (id === 'v-optimizer_type' && val) {
-            val = val.replace(/\(.*?\)/g, '').trim();
-            const parts = val.split('.');
-            val = parts[parts.length - 1];
-        }
+        // ── Optimizer Type ─────────────────────────────────────────────────────
+		if (id === 'v-optimizer_type' && val) {
+			let clean = String(val).trim();
+
+		// 1. Remove everything after "," (ex: Prodigy,xxxx)
+			clean = clean.split(',')[0].trim();
+
+		// 2. Remove everything between () no closes included
+			clean = clean.replace(/\s*\([^)]*\)?/g, '').trim();
+
+		// 3. Remove namespace (torch.optim.Prodigy → Prodigy)
+			const dotParts = clean.split('.');
+			clean = dotParts[dotParts.length - 1];
+
+		// 4. Remove sufixos after _ or - 
+			clean = clean.split('_')[0].split('-')[0].trim();
+			val = clean || val;
+		}
 
         setField(id, val);
     }
