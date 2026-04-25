@@ -4,15 +4,27 @@
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>LoRa Metadata Reader</title>
-	<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='13' cy='13' r='8' fill='none' stroke='%2300ff99' stroke-width='3'/><line x1='19' y1='19' x2='28' y2='28' stroke='%2300ff99' stroke-width='3' stroke-linecap='round'/></svg>"><link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='27' cy='27' r='16' fill='none' stroke='%2300ff99' stroke-width='6'/><line x1='39' y1='39' x2='54' y2='54' stroke='%2300ff99' stroke-width='6' stroke-linecap='round'/><circle cx='22' cy='22' r='4' fill='%2300ff99' opacity='.18'/></svg>">
+	<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='27' cy='27' r='16' fill='none' stroke='%2300ff99' stroke-width='6'/><line x1='39' y1='39' x2='54' y2='54' stroke='%2300ff99' stroke-width='6' stroke-linecap='round'/><circle cx='22' cy='22' r='4' fill='%2300ff99' opacity='.18'/></svg>">
 	<style>
 		@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
 
 		* { margin: 0; padding: 0; box-sizing: border-box; }
 		body { background: #0a0a0a; color: #e0e0e0; font-family: 'Inter', Arial, sans-serif; line-height: 1.4; }
 		.container { max-width: 1280px; margin: 0 auto; padding: 20px; }
-		header { text-align: center; margin-bottom: 30px; }
+		header { text-align: center; margin-bottom: 30px; position: relative; }
 		h1 { font-size: 28px; font-weight: 600; color: #fff; display: flex; align-items: center; justify-content: center; gap: 12px; }
+		.header-actions {
+			position: fixed;
+			top: 14px;
+			right: 18px;
+			z-index: 50;
+			display: flex;
+			align-items: center;
+			justify-content: flex-end;
+			opacity: .78;
+			transition: opacity .15s ease;
+		}
+		.header-actions:hover { opacity: 1; }
 
 		/* DROPZONE */
 		.dropzone { border: 2px dashed #444; background: #161616; border-radius: 16px; padding: 50px 20px; text-align: center; cursor: pointer; transition: all 0.3s ease; margin-bottom: 16px; }
@@ -43,6 +55,61 @@
 		}
 		.cardprompt-body { overflow: hidden; transition: max-height 0.35s ease; max-height: 9999px; }
 		.cardprompt-body.collapsed { max-height: 0 !important; }
+
+		/* OFFLINE MODE TOGGLE — compact corner control */
+		.offline-toggle-row { display: flex; justify-content: flex-end; align-items: center; }
+		.offline-toggle {
+			display: inline-flex;
+			align-items: center;
+			gap: 6px;
+			background: rgba(16,25,20,.72);
+			border: 1px solid rgba(26,74,48,.7);
+			border-radius: 999px;
+			padding: 4px 8px;
+			font-size: 10px;
+			font-weight: 600;
+			color: #3f9f78;
+			cursor: pointer;
+			user-select: none;
+			letter-spacing: .03em;
+			backdrop-filter: blur(6px);
+			box-shadow: 0 2px 10px rgba(0,0,0,.18);
+		}
+		.offline-toggle input { display: none; }
+		.offline-switch {
+			position: relative;
+			width: 26px;
+			height: 14px;
+			border-radius: 999px;
+			background: #1d1d1d;
+			border: 1px solid #303030;
+			transition: background .18s, border-color .18s;
+		}
+		.offline-switch::after {
+			content: '';
+			position: absolute;
+			top: 2px;
+			left: 2px;
+			width: 8px;
+			height: 8px;
+			border-radius: 50%;
+			background: #666;
+			transition: transform .18s, background .18s;
+		}
+		.offline-toggle.active {
+			background: rgba(31,24,5,.76);
+			border-color: rgba(107,85,0,.72);
+			color: #d9bf58;
+		}
+		.offline-toggle.active .offline-switch {
+			background: #3a2e07;
+			border-color: #6b5500;
+		}
+		.offline-toggle.active .offline-switch::after {
+			transform: translateX(12px);
+			background: #d9bf58;
+		}
+		.offline-toggle-text { line-height: 1; }
 
 		/* CONNECTION ALERT BAR */
 		.conn-alert {
@@ -113,8 +180,6 @@
 
 		/* info rows */
 		.info-label { font-size: 13px; color: #aaa; margin-bottom: 6px; }
-		/* info-value — color set by white-text block below */
-		.info-value { background: #111; padding: 10px 12px; border-radius: 6px; margin-bottom: 16px; font-weight: 500; min-height: 38px; }
 
 		/* right panel header with blue button */
 		.lora-data-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
@@ -139,7 +204,6 @@
 		.prompt-block:last-child { margin-bottom: 0; }
 		.promptBox { color: #aaa; margin-bottom: 6px; font-size: 14px; display: flex; align-items: center; gap: 6px; }
 		.prompt-label { font-weight: 500; color: #ccc; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-		.prompt-label-spacer { flex: 1; }
 		.promptArea { background: #0d0d0d; color: #00ff99; width: 100%; box-sizing: border-box; display: block; border: 1px solid #1e1e1e; border-radius: 6px; padding: 8px 10px; font-family: inherit; font-size: 13px; resize: none; overflow: hidden; }
 		.copy-btn { background: none; border: none; cursor: pointer; padding: 2px 6px; border-radius: 4px; color: #555; font-size: 15px; line-height: 1; transition: color .15s, background .15s; flex-shrink: 0; }
 		.copy-btn:hover { color: #00cc88; background: #1a2a22; }
@@ -437,6 +501,13 @@
 			margin-top: 6px;
 			text-align: center;
 		}
+
+		@media (max-width: 760px) {
+			header { margin-bottom: 24px; }
+			.header-actions { top: 10px; right: 10px; }
+			.offline-toggle { padding: 4px 7px; }
+		}
+
 	</style>
 </head>
 <body>
@@ -444,6 +515,13 @@
 
 	<header>
 		<h1><span>🕵️‍♂️</span> LoRa Metadata Reader <span>🕵️‍♂️</span></h1>
+		<div class="header-actions">
+			<label class="offline-toggle" id="offlineToggleLabel" title="Skip automatic CivitAI lookup for loaded LoRAs">
+				<input type="checkbox" id="offlineModeToggle" onchange="setOfflineMode(this.checked)">
+				<span class="offline-switch"></span>
+				<span class="offline-toggle-text" id="offlineToggleText">Online</span>
+			</label>
+		</div>
 	</header>
 
 	<!-- DROPZONE -->
@@ -452,6 +530,7 @@
 		<div style="font-size:12px;color:#666;margin-top:8px;">.safetensors only</div>
 		<input type="file" id="fileInput" accept=".safetensors">
 	</div>
+
 
 	<!-- CONNECTION ALERT (shown only on scan failure, not on load) -->
 	<div class="conn-alert" id="connAlert">
@@ -511,7 +590,7 @@
 			<!-- Creator — shown only on Civitai/HF match -->
 			<div id="creatorLabelRow" style="display:none;">
 				<div class="info-label">Creator</div>
-				<div class="creator-block visible" id="creatorBlock" style="display:flex;margin-bottom:16px;">
+				<div class="creator-block visible" style="display:flex;margin-bottom:16px;">
 					<img class="creator-avatar" id="creatorAvatar" src="" alt="" onerror="this.style.display='none';document.getElementById('creatorAvatarFallback').style.display='flex'">
 					<div class="creator-avatar-placeholder" id="creatorAvatarFallback" style="display:none;">👤</div>
 					<div class="creator-info">
@@ -525,7 +604,7 @@
 		<div class="lora-data-box">
 			<div class="lora-data-header">
 				<div class="lora-data-title">Model Data</div>
-				<a class="btn-open-index" href="png_metadata_reader.html" target="_blank">PNG Metadata Reader ↗</a>
+				<a class="btn-open-index" href="png metadata reader.html" target="_blank">PNG Metadata Reader ↗</a>
 			</div>
 
 			<div class="summary-grid">
@@ -592,7 +671,7 @@
 
 		<!-- PROMPTS (spans both columns) -->
 		<div class="cardprompt">
-			<div class="cardprompt-header" onclick="toggleCardPrompt()" id="cardPromptHeader">
+			<div class="cardprompt-header" onclick="toggleCardPrompt()">
 				<div class="cardprompt-title">Model Prompts</div>
 				<button class="cardprompt-toggle-btn" id="cardPromptToggleBtn">▲</button>
 			</div>
@@ -844,8 +923,51 @@ fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile
 let currentLoraName = '';
 let currentMeta     = {};
 let currentFile     = null;
+let offlineMode     = false;
 // onlineEnabled is NOT set at startup — determined per-scan only
 let connErrorShown  = false;
+
+function readOfflineMode() {
+	try { return localStorage.getItem('loraReaderOfflineMode') === '1'; }
+	catch { return false; }
+}
+
+function saveOfflineMode(value) {
+	try { localStorage.setItem('loraReaderOfflineMode', value ? '1' : '0'); }
+	catch { }
+}
+
+function updateOfflineToggleUI() {
+	const toggle = document.getElementById('offlineModeToggle');
+	const label  = document.getElementById('offlineToggleLabel');
+	const text   = document.getElementById('offlineToggleText');
+	if (toggle) toggle.checked = offlineMode;
+	if (label) label.classList.toggle('active', offlineMode);
+	if (text) text.textContent = offlineMode ? 'Offline' : 'Online';
+}
+
+function setOfflineMode(value) {
+	offlineMode = !!value;
+	saveOfflineMode(offlineMode);
+	updateOfflineToggleUI();
+
+	if (offlineMode) {
+		hideConnError();
+		hideBanner();
+		hideOutdatedBanner();
+		document.getElementById('hashProgress').style.display = 'none';
+		document.getElementById('onlineBar').style.display = 'none';
+		document.getElementById('connErrorBar').style.display = 'none';
+		document.getElementById('civitaiResultBox').style.display = 'none';
+		document.getElementById('onlinePromptsBox').style.display = 'none';
+		setStatus('', currentFile ? '📴 Offline mode — CivitAI lookup skipped.' : '');
+	} else if (currentFile) {
+		doHashAndLookup(currentFile);
+	}
+}
+
+offlineMode = readOfflineMode();
+updateOfflineToggleUI();
 
 // ── CONNECTION ALERT — single instance, no stacking ──────────────────────────
 const API = 'https://civitai.com/api/v1/';
@@ -866,6 +988,10 @@ function hideConnError() {
 
 async function retryConnection() {
 	hideConnError();
+	if (offlineMode) {
+		setStatus('', currentFile ? '📴 Offline mode — CivitAI lookup skipped.' : '');
+		return;
+	}
 	setStatus('loading', '⏳ Retrying connection…');
 	if (currentFile) {
 		doHashAndLookup(currentFile);
@@ -894,8 +1020,13 @@ async function processFile(file) {
 	renderMetaRaw(meta);
 	renderMetaEditor(meta);
 
-	// Always attempt Civitai scan on new file load (connection validated inside)
-	doHashAndLookup(file);
+	// Always attempt Civitai scan on new file load unless Offline Mode is enabled.
+	if (offlineMode) {
+		document.getElementById('hashProgress').style.display = 'none';
+		setStatus('', '📴 Offline mode — CivitAI lookup skipped.');
+	} else {
+		doHashAndLookup(file);
+	}
 }
 
 // ── SAFETENSORS HEADER ───────────────────────────────────────────────────────
@@ -953,6 +1084,11 @@ async function tryHashOnCivitai(hashValue) {
 }
 
 async function doHashAndLookup(file) {
+	if (offlineMode) {
+		document.getElementById('hashProgress').style.display = 'none';
+		setStatus('', currentFile ? '📴 Offline mode — CivitAI lookup skipped.' : '');
+		return;
+	}
 	const prog  = document.getElementById('hashProgress');
 	const fill  = document.getElementById('hashProgressFill');
 	const label = document.getElementById('hashProgressLabel');
@@ -971,10 +1107,18 @@ async function doHashAndLookup(file) {
 		return;
 	}
 	prog.style.display = 'none';
+	if (offlineMode) {
+		setStatus('', currentFile ? '📴 Offline mode — CivitAI lookup skipped.' : '');
+		return;
+	}
 
 	// ── Confirm internet before showing Online Tools bar ─────────────────────
 	setStatus('loading', '🌐 Checking connection…');
 	const hasNet = await checkInternet();
+	if (offlineMode) {
+		setStatus('', currentFile ? '📴 Offline mode — CivitAI lookup skipped.' : '');
+		return;
+	}
 	if (!hasNet) {
 		showOtAlert('⛔ No internet access — Online Tools require a connection');
 		setStatus('error', '⚠ No internet — online lookup skipped.');
@@ -1036,6 +1180,7 @@ async function doHashAndLookup(file) {
 
 	// ── Civitai found ─────────────────────────────────────────────────────────
 	if (ver) {
+		if (offlineMode) return;
 		applyVersion(ver);
 		return;
 	}
@@ -1071,56 +1216,59 @@ async function strictNameSearch(name) {
 }
 
 async function applyVersion(ver) {
+	if (offlineMode) return;
 	const modelName = ver.model?.name || ver.name || currentLoraName;
 	const civUrl    = 'https://civitai.com/models/' + ver.modelId + '?modelVersionId=' + ver.id;
 
 	setStatus('found', '✓ ' + modelName + ' — ' + ver.name);
 	showBanner('found', '✅  Found on CivitAI — ' + modelName);
 
-	// ── Check if this is the latest version ─────────────────────────────────
-	(async () => {
+	// ── Fetch full model data once; reused for outdated check, description,
+	// creator fallback, and trained-word aggregation.
+	let fullModelData = null;
+	if (ver.modelId) {
 		try {
-			if (ver.modelId) {
-				const mr = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
-				if (mr.ok) {
-					const md = await mr.json();
-					const versions = md.modelVersions || [];
-					// Latest version is the first in the array (Civitai orders newest first)
-					if (versions.length > 0 && versions[0].id !== ver.id) {
-						showOutdatedBanner();
-					}
+			const mr = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
+			if (mr.ok) {
+				fullModelData = await mr.json();
+				ver._fullModelData = fullModelData;
+
+				const versions = fullModelData.modelVersions || [];
+				// Latest version is the first in the array (Civitai orders newest first)
+				if (versions.length > 0 && versions[0].id !== ver.id) {
+					showOutdatedBanner();
 				}
 			}
-		} catch { /* silently ignore version check errors */ }
-	})();
+		} catch { /* silently ignore full model fetch errors */ }
+	}
 
 	const nameEl = document.getElementById('loraNameDisplay');
 	nameEl.innerHTML = '<a href="' + civUrl + '" target="_blank">' + escHtml(modelName) + '</a>';
 
 	// Gallery: all images
-	const images = (ver.images || []).map(i => i.url).filter(Boolean);
+	const images = (ver.images || [])
+		.filter(i => i && i.url)
+		.map(i => ({
+			url: i.url,
+			type: i.type,
+			mimeType: i.mimeType || i.mime || ''
+		}));
 	if (images.length > 0) setGallery(images);
 
 	applyBaseModel(ver, currentMeta);
 
 	let creatorName = ver.model?.creator?.username || '';
 	let creatorImg  = ver.model?.creator?.image    || '';
-	// Always fetch the full model to get model description; also grab creator if not yet known
-	if (ver.modelId && (!creatorName || !ver._modelDescription)) {
-		try {
-			const mr = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
-			if (mr.ok) {
-				const md = await mr.json();
-				if (!creatorName) {
-					creatorName = md.creator?.username || '';
-					creatorImg  = md.creator?.image    || '';
-				}
-				// Capture model description for populateOnline
-				if (!ver._modelDescription && md.description) {
-					ver._modelDescription = md.description;
-				}
-			}
-		} catch { }
+	// Use the full model payload fetched above to get model description/creator.
+	if (fullModelData && (!creatorName || !ver._modelDescription)) {
+		if (!creatorName) {
+			creatorName = fullModelData.creator?.username || '';
+			creatorImg  = fullModelData.creator?.image    || '';
+		}
+		// Capture model description for populateOnline
+		if (!ver._modelDescription && fullModelData.description) {
+			ver._modelDescription = fullModelData.description;
+		}
 	}
 	// Also capture from ver.model if already present (no fetch needed)
 	if (!ver._modelDescription && ver.model?.description) {
@@ -1165,7 +1313,7 @@ async function applyBaseModel(ver, meta) {
 
 	// Primary: hash lookup via ss_sd_model_hash (most accurate — same as Xypher)
 	if (meta) {
-		const modelHash = findVal(meta, ['ss_sd_model_hash','sd_model_hash','sshs_model_hash']);
+		const modelHash = findVal(meta, ['ss_sd_model_hash','sd_model_hash']);
 		if (modelHash) {
 			try {
 				const r = await fetch(API + 'model-versions/by-hash/' + modelHash, { signal: AbortSignal.timeout(8000) });
@@ -1312,8 +1460,13 @@ async function collectAllTrainedWords(ver) {
 			ver.model.modelVersions.forEach(mv => addWords(mv.trainedWords));
 		}
 
-		// fetch the full model to get ALL version trainedWords
-		if (ver.modelId && all.length === 0) {
+		// Reuse the full model payload from applyVersion when available.
+		if (ver._fullModelData && Array.isArray(ver._fullModelData.modelVersions)) {
+			ver._fullModelData.modelVersions.forEach(mv => addWords(mv.trainedWords));
+		}
+
+		// fetch the full model to get ALL version trainedWords only if no cached payload exists
+		if (ver.modelId && all.length === 0 && !ver._fullModelData) {
 			try {
 				const r = await fetch(API + 'models/' + ver.modelId, { signal: AbortSignal.timeout(8000) });
 				if (r.ok) {
@@ -1392,13 +1545,8 @@ async function renderOnlinePrompts(ver) {
 // ── FIELD MAP ────────────────────────────────────────────────────────────────
 // Mirrors field resolution: ss_ prefix first, then bare names, then alternate keys
 const FIELDS = {
-	'v-prediction_type':            ['modelspec.prediction_type','ss_v_pred_model','ss_prediction_type','prediction_type','v_parameterization'],
-	'v-batch_size':                 ['ss_batch_size_per_device','ss_total_batch_size','train_batch_size','batch_size'],
 	'v-gradient_accumulation_steps':['ss_gradient_accumulation_steps','gradient_accumulation_steps'],
-	'v-resolution':                 ['ss_resolution','resolution'],
 	'v-clip_skip':                  ['ss_clip_skip','clip_skip'],
-	'v-epoch':                      ['ss_epoch','ss_num_train_epochs','num_train_epochs'],
-	'v-steps':                      ['ss_steps','ss_max_train_steps','max_train_steps'],
 	'v-network_module':             ['ss_network_module','network_module'],
 	'v-network_args_algo':          ['ss_network_args','network_args'],
 	'v-network_dropout':            ['ss_network_dropout','network_dropout'],
@@ -1420,11 +1568,24 @@ const JOIN_FIELDS = {
 	'v-conv_dim_alpha':[['ss_conv_dim','conv_dim'],         ['ss_conv_alpha','conv_alpha']],
 };
 
+function isMetaEmptyValue(value) {
+	if (value === undefined || value === null) return true;
+	const s = String(value).trim();
+	return !s || /^(null|none|undefined|unknown|n\/?a|-)$/i.test(s);
+}
+
 function findVal(meta, keys) {
 	for (const k of keys) {
-		if (meta[k] !== undefined && meta[k] !== null && meta[k] !== '') return String(meta[k]);
+		if (meta[k] !== undefined && !isMetaEmptyValue(meta[k])) return String(meta[k]).trim();
 	}
 	return null;
+}
+
+function parseMetaJson(value) {
+	if (value === undefined || value === null) return null;
+	if (typeof value === 'object') return value;
+	try { return JSON.parse(String(value)); }
+	catch { return null; }
 }
 
 // ── METADATA PARSER HELPERS ──────────────────────────────────────────────────
@@ -1461,10 +1622,11 @@ function resolveBatch(meta) {
 		}
 	}
 
-	// compatibilidade index.html
-	if (meta.ss_datasets && Array.isArray(meta.ss_datasets)) {
-		const ds = meta.ss_datasets[0];
-		if (ds?.batch_size_per_device) {
+	// compatibilidade index.html / kohya: ss_datasets can be an array or a JSON string
+	const datasets = parseMetaJson(meta.ss_datasets);
+	if (Array.isArray(datasets) && datasets.length > 0) {
+		const ds = datasets[0];
+		if (ds?.batch_size_per_device !== undefined && !isMetaEmptyValue(ds.batch_size_per_device)) {
 			return String(ds.batch_size_per_device);
 		}
 	}
@@ -1510,8 +1672,9 @@ function resolveResolution(meta) {
 		}
 	}
 
-	if (!raw && meta.ss_datasets && Array.isArray(meta.ss_datasets) && meta.ss_datasets[0]?.resolution) {
-		const r = meta.ss_datasets[0].resolution;
+	const datasets = parseMetaJson(meta.ss_datasets);
+	if (!raw && Array.isArray(datasets) && datasets.length > 0 && datasets[0]?.resolution) {
+		const r = datasets[0].resolution;
 		raw = Array.isArray(r) ? r.join('x') : String(r);
 	}
 
@@ -1534,18 +1697,23 @@ function resolveResolution(meta) {
 
 function parseDatasetDirs(raw) {
 	try {
-		const obj = JSON.parse(raw);
+		const obj = parseMetaJson(raw);
+		if (!obj || typeof obj !== 'object') throw new Error('Bad dataset dirs');
+
 		let totalImgs = 0;
 		const entries = Object.entries(obj).map(([name, info]) => {
-			const repeats  = info.n_repeats || info.repeats || extractRepeatsFromName(name) || null;
-			const imgCount = info.img_count || info.num_images || extractImgCountFromName(name) || 0;
-			totalImgs += imgCount;
+			const repeatsRaw = info?.n_repeats ?? info?.num_repeats ?? info?.repeats ?? extractRepeatsFromName(name) ?? null;
+			const repeats    = repeatsRaw !== null ? parseInt(repeatsRaw, 10) : null;
+			const imgRaw     = info?.img_count ?? info?.num_images ?? extractImgCountFromName(name) ?? 0;
+			const imgCount   = parseInt(imgRaw, 10) || 0;
+			const trainCount = repeats && imgCount ? repeats * imgCount : imgCount;
+			totalImgs += trainCount;
 			const label = formatDatasetLabel(name, repeats, imgCount);
-			return { label, imgCount };
+			return { label, imgCount, repeats, trainCount };
 		});
 		return { entries, totalImgs };
 	} catch {
-		return { entries: [{ label: raw, imgCount: 0 }], totalImgs: 0 };
+		return { entries: [{ label: String(raw), imgCount: 0, repeats: null, trainCount: 0 }], totalImgs: 0 };
 	}
 }
 
@@ -1571,34 +1739,48 @@ function formatDatasetLabel(name, repeats, imgCount) {
 	return label;
 }
 
+function normalizeLocalBaseModelName(raw) {
+	if (isMetaEmptyValue(raw)) return null;
+	let cleanName = String(raw).trim();
+
+	// Keep the metadata value visible as plain local text, like the original behavior.
+	// Only remove common checkpoint extensions and local paths for readability.
+	cleanName = cleanName.replace(/\.(safetensors|ckpt|pt|pth|bin|ckpt\.safetensors)$/i, '');
+	cleanName = cleanName.replace(/^.*[\/\\]/, '').trim();
+
+	return cleanName || null;
+}
+
+function findLocalBaseModelName(meta) {
+	// Local/offline display should mirror the trainer metadata literally.
+	// Prefer the actual checkpoint filename first, even if the cleaned name is numeric.
+	const keys = ['ss_sd_model_name','sd_model_name','checkpoint','base_model','ss_base_model_version'];
+
+	for (const key of keys) {
+		const value = normalizeLocalBaseModelName(meta[key]);
+		if (value) return value;
+	}
+
+	return null;
+}
+
 function populateUI(meta) {
 	// Base model
-	const bm = findVal(meta, ['ss_sd_model_name','ss_base_model_version','base_model','checkpoint','sd_model_name']);
+	const bm = findLocalBaseModelName(meta);
 	if (bm) {
-let cleanName = String(bm).trim();
-
-// Remove extensões comuns de checkpoint
-cleanName = cleanName.replace(/\.(safetensors|ckpt|pt|pth|bin|ckpt\.safetensors)$/i, '');
-
-// Remove também possíveis caminhos (ex: models/Stable-diffusion/...)
-cleanName = cleanName.replace(/^.*[\/\\]/, '');
-
-setField('baseModelValue', cleanName, false);
-document.getElementById('baseModelValue').style.color = '#ffffff';
-}
+		setField('baseModelValue', bm);
+		document.getElementById('baseModelValue').style.color = '#ffffff';
+	}
 
 	// VAE
 	const vae    = findVal(meta, ['ss_vae_name','vae','vae_name']);
 	const vaeRow = document.getElementById('vaeRow');
-	if (vae) { setField('vaeValue', vae, false); document.getElementById('vaeValue').style.color = '#ffffff'; vaeRow.style.display = 'block'; }
+	if (vae) { setField('vaeValue', vae); document.getElementById('vaeValue').style.color = '#ffffff'; vaeRow.style.display = 'block'; }
 	else      { vaeRow.style.display = 'none'; }
 
 	// ── Regular fields ──────────────────────────────────────────────────────
 	for (const [id, keys] of Object.entries(FIELDS)) {
 		let val = findVal(meta, keys);
-
-		// Skip — handled below by custom resolvers
-		if (['v-prediction_type','v-batch_size','v-resolution','v-epoch','v-steps'].includes(id)) continue;
 
 		if (id === 'v-network_args_algo' && val) {
 			try {
@@ -1816,8 +1998,8 @@ if (dsRaw) {
 		
 		
 	const ni = findVal(meta, ['ss_num_train_images','num_train_images']);
-	if (datasetImgCount > 0)        setField('v-total_images', String(datasetImgCount));
-	else if (ni && !ni.startsWith('{')) setField('v-total_images', ni);
+	if (ni && !ni.startsWith('{'))       setField('v-total_images', ni);
+	else if (datasetImgCount > 0)        setField('v-total_images', String(datasetImgCount));
 
 	// Comment
 	const cmt = findVal(meta, ['ss_training_comment','training_comment','comment','notes']);
@@ -1843,7 +2025,7 @@ if (dsRaw) {
 	}
 }
 
-function setField(id, val, isCardValue = true) {
+function setField(id, val) {
 	const el = document.getElementById(id);
 	if (!el) return;
 	if (val !== null && val !== undefined && val !== '') {
@@ -2094,11 +2276,6 @@ function galleryGoTo(idx) {
 	renderGalleryFrame(idx);
 }
 
-// Legacy single-image setter
-function setModelImage(url) {
-	setGallery([url]);
-}
-
 // ── TAG FREQUENCY ─────────────────────────────────────────────────────────────
 function renderTagFrequency(meta) {
 	const el  = document.getElementById('tagFreqContent');
@@ -2185,7 +2362,9 @@ function resetUI() {
 	currentFile = null;
 	galleryImages = [];
 	galleryIndex  = 0;
-	document.getElementById('imageWrap').classList.remove('has-gallery');
+	const imageWrap = document.getElementById('imageWrap');
+	imageWrap.classList.remove('has-gallery');
+	imageWrap.querySelectorAll('.image-loading, video').forEach(e => e.remove());
 	document.getElementById('galleryDots').innerHTML = '';
 	document.getElementById('galleryCounter').textContent = '';
 
@@ -2249,6 +2428,7 @@ function resetUI() {
 	document.getElementById('metaEditorContent').textContent = 'Load a file first.';
 	document.getElementById('hashProgress').style.display   = 'none';
 	document.getElementById('otAlertBar').style.display     = 'none';
+	updateOfflineToggleUI();
 	setStatus('','');
 }
 
@@ -2256,10 +2436,6 @@ function resetUI() {
 function escHtml(s) {
 	return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
-function stripHtml(h) {
-	const d = document.createElement('div'); d.innerHTML = h; return d.textContent || d.innerText || '';
-}
-
 // Convert raw Civitai HTML description to safe renderable HTML:
 // - keeps links (<a href>), paragraphs, headings, lists
 // - replaces all <img> tags with a [img] badge
@@ -2324,15 +2500,26 @@ function sanitizeCivitaiDesc(raw) {
 
 // ── INTERNET CHECK ────────────────────────────────────────────────────────────
 async function checkInternet() {
-	try {
-		const ctrl = new AbortController();
-		const t = setTimeout(() => ctrl.abort(), 4000);
-		const r = await fetch('https://danbooru.donmai.us/tags.json?search[name]=1girl&limit=1', {
-			signal: ctrl.signal, cache: 'no-store'
-		});
-		clearTimeout(t);
-		return r.ok;
-	} catch(e) { return false; }
+	const probes = [
+		'https://civitai.com/api/v1/models?limit=1',
+		'https://danbooru.donmai.us/tags.json?search[name]=1girl&limit=1'
+	];
+
+	const checks = probes.map(async url => {
+		let t = null;
+		try {
+			const ctrl = new AbortController();
+			t = setTimeout(() => ctrl.abort(), 4000);
+			const r = await fetch(url, { signal: ctrl.signal, cache: 'no-store' });
+			return r.ok;
+		} catch(e) {
+			return false;
+		} finally {
+			if (t) clearTimeout(t);
+		}
+	});
+
+	return (await Promise.all(checks)).some(Boolean);
 }
 
 function showOtAlert(msg) {
@@ -2589,8 +2776,6 @@ async function danbooruTranslate() {
 
 // ── AUTO-DETECT TAGS FROM LORA TRAINING DATA ──────────────────────────────────
 // Uses ss_tag_frequency from metadata — the same data shown in the Prompts section
-let _detectedTagsCache = null;
-
 async function openDetectPopout() {
 	const overlay   = document.getElementById('detectOverlay');
 	const body      = document.getElementById('detectPopoutBody');
@@ -2624,7 +2809,6 @@ async function openDetectPopout() {
 	}
 
 	found.sort((a,b) => b.post_count - a.post_count);
-	_detectedTagsCache = found;
 	renderDetectPopout(found, null);
 }
 
