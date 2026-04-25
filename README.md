@@ -1,21 +1,46 @@
-# Lora-Metadata-Reader
-This software was inspired by: https://github.com/Xypher7/lora-metadata-viewer
+# LoRA Metadata Reader
 
-The idea was to redo everything with a new, more user-friendly and stylized interface, with some new functions and improvements. Some code snippets from Xypher were used to correct certain parts of the code.
+LoRA Metadata Reader is a standalone metadata reader for LoRA models, inspired by Xypher7's LoRA Metadata Viewer:
 
-Some functions that seemed unnecessary were removed, and others were added.
+https://github.com/Xypher7/lora-metadata-viewer
 
-The interface will automatically adapt to the parameters of the loaded LoRa, adjusting the size and dimensions of certain fields.
+The idea was to rebuild the tool with a new, more user-friendly and stylized interface, while adding new functions, improvements and a cleaner workflow.
 
-The Danbooru tag system I created serves to automatically detect used tags and can be used to view their description in Danbooru.
+Some code snippets from Xypher's project were used to fix or improve specific parts of the code. Some functions that seemed unnecessary were removed, and others were added.
 
-The online system was redesigned for slightly better usability, especially the prompts suggested by the creators.
+The interface automatically adapts to the loaded LoRA metadata, adjusting the size and layout of certain fields depending on the available information.
 
-PNG Metadata Reader is a standalone tool still under development. Don't worry about it, but it will be available in another repository on my profile as soon as it's ready.
+The tool also includes a Danbooru tag system, which can automatically detect tags from the LoRA metadata and show their descriptions on Danbooru.
 
-use online > https://shirosaki33.github.io/Lora-Metadata-Reader/Lora%20Metadata%20Reader%20v1.html
+The online system was redesigned for better usability, especially for viewing creator-suggested prompts and related model information.
 
-can use local, just download the html an drag at web browser, its the best option since is working later with the another standalone tool.
+## Main features
+
+- Reads metadata from LoRA files.
+- Organizes model information, tags, trigger words and training data.
+- Automatically adapts the interface based on the loaded metadata.
+- Includes a Danbooru tag system to search, detect and view tag descriptions.
+- Includes online tools for checking related model information.
+- Shows creator-suggested prompts in a cleaner and easier-to-read format.
+- Works directly in the browser as a standalone HTML file.
+
+## Usage
+
+Use online:
+
+https://shirosaki33.github.io/Lora-Metadata-Reader/Lora%20Metadata%20Reader%20v1.html
+
+Or use locally:
+
+Download the HTML file and drag it into your web browser.
+
+Local use is recommended. If LoRA Metadata Reader and PNG Metadata Reader are in the same directory, PNG Metadata Reader can open LoRA Metadata Reader locally, making the workflow faster and easier when using both tools together.
+
+## Related tool
+
+PNG Metadata Reader:
+
+https://github.com/shirosaki33/PNG-Metadata-Reader
 
 <img width="1172" height="1229" alt="image" src="https://github.com/user-attachments/assets/0d05df2a-3c92-40b9-b366-c64f44e79f24" />
 <img width="842" height="1232" alt="image" src="https://github.com/user-attachments/assets/09fa660e-fa7e-422f-84ce-35129ee908f5" />
